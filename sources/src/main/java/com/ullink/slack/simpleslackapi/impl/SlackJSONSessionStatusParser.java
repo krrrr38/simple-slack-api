@@ -2,10 +2,10 @@ package com.ullink.slack.simpleslackapi.impl;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.ullink.slack.simpleslackapi.SlackChannel;
@@ -55,74 +55,80 @@ class SlackJSONSessionStatusParser
         return error;
     }
     
-    void parse() throws ParseException
+    void parse()
     {
         LOGGER.debug("parsing session status : " + toParse);
-        JSONParser parser = new JSONParser();
-        JSONObject jsonResponse = (JSONObject) parser.parse(toParse);
-        Boolean ok = (Boolean)jsonResponse.get("ok");
+        JsonParser parser = new JsonParser();
+        JsonObject jsonResponse = parser.parse(toParse).getAsJsonObject();
+        Boolean ok = jsonResponse.get("ok").getAsBoolean();
         if (Boolean.FALSE.equals(ok)) {
-            error = (String)jsonResponse.get("error");
+            error = (String)jsonResponse.get("error").getAsString();
             return;
         }
-        JSONArray usersJson = (JSONArray) jsonResponse.get("users");
+        JsonArray usersJson = jsonResponse.get("users").getAsJsonArray();
 
-        for (Object jsonObject : usersJson)
+        for (JsonElement jsonObject : usersJson)
         {
-            JSONObject jsonUser = (JSONObject) jsonObject;
+            JsonObject jsonUser = jsonObject.getAsJsonObject();
             SlackUser slackUser = SlackJSONParsingUtils.buildSlackUser(jsonUser);
             LOGGER.debug("slack user found : " + slackUser.getId());
             users.put(slackUser.getId(), slackUser);
         }
 
-        JSONArray botsJson = (JSONArray) jsonResponse.get("bots");
-        if (botsJson != null) {
-            for (Object jsonObject : botsJson)
+        if (jsonResponse.get("bots") != null) {
+            JsonArray botsJson = jsonResponse.get("bots").getAsJsonArray();
+            for (JsonElement jsonObject : botsJson)
             {
-                JSONObject jsonBot = (JSONObject) jsonObject;
+                JsonObject jsonBot = jsonObject.getAsJsonObject();
                 SlackUser slackUser = SlackJSONParsingUtils.buildSlackUser(jsonBot);
                 LOGGER.debug("slack bot found : " + slackUser.getId());
                 users.put(slackUser.getId(), slackUser);
             }
         }
 
-        JSONArray channelsJson = (JSONArray) jsonResponse.get("channels");
+        JsonArray channelsJson = jsonResponse.get("channels").getAsJsonArray();
 
-        for (Object jsonObject : channelsJson)
+        for (JsonElement jsonObject : channelsJson)
         {
-            JSONObject jsonChannel = (JSONObject) jsonObject;
+            JsonObject jsonChannel = jsonObject.getAsJsonObject();
             SlackChannelImpl channel = SlackJSONParsingUtils.buildSlackChannel(jsonChannel, users);
             LOGGER.debug("slack public channel found : " + channel.getId());
             channels.put(channel.getId(), channel);
         }
 
-        JSONArray groupsJson = (JSONArray) jsonResponse.get("groups");
-
-        for (Object jsonObject : groupsJson)
+        if (jsonResponse.get("groups") != null)
         {
-            JSONObject jsonChannel = (JSONObject) jsonObject;
-            SlackChannelImpl channel = SlackJSONParsingUtils.buildSlackChannel(jsonChannel, users);
-            LOGGER.debug("slack private group found : " + channel.getId());
-            channels.put(channel.getId(), channel);
+            JsonArray groupsJson = jsonResponse.get("groups").getAsJsonArray();
+            for (JsonElement jsonObject : groupsJson)
+            {
+                JsonObject jsonChannel = jsonObject.getAsJsonObject();
+                SlackChannelImpl channel = SlackJSONParsingUtils.buildSlackChannel(jsonChannel, users);
+                LOGGER.debug("slack private group found : " + channel.getId());
+                channels.put(channel.getId(), channel);
+            }
         }
 
-        JSONArray imsJson = (JSONArray) jsonResponse.get("ims");
-
-        for (Object jsonObject : imsJson)
+        if (jsonResponse.get("ims") != null)
         {
-            JSONObject jsonChannel = (JSONObject) jsonObject;
-            SlackChannelImpl channel = SlackJSONParsingUtils.buildSlackImChannel(jsonChannel, users);
-            LOGGER.debug("slack im channel found : " + channel.getId());
-            channels.put(channel.getId(), channel);
+            JsonArray imsJson = jsonResponse.get("ims").getAsJsonArray();
+
+            for (JsonElement jsonObject : imsJson)
+            {
+                JsonObject jsonChannel = jsonObject.getAsJsonObject();
+                SlackChannelImpl channel = SlackJSONParsingUtils.buildSlackImChannel(jsonChannel, users);
+                LOGGER.debug("slack im channel found : " + channel.getId());
+                channels.put(channel.getId(), channel);
+            }
         }
 
-        JSONObject selfJson = (JSONObject) jsonResponse.get("self");
+
+        JsonObject selfJson = jsonResponse.get("self").getAsJsonObject();
         sessionPersona = SlackJSONParsingUtils.buildSlackUser(selfJson);
 
-        JSONObject teamJson = (JSONObject) jsonResponse.get("team");
+        JsonObject teamJson = jsonResponse.get("team").getAsJsonObject();
         team = SlackJSONParsingUtils.buildSlackTeam(teamJson);
 
-        webSocketURL = (String) jsonResponse.get("url");
+        webSocketURL = jsonResponse.get("url").getAsString();
 
     }
 

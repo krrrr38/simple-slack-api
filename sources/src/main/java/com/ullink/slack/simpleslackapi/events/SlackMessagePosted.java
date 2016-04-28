@@ -1,7 +1,6 @@
 package com.ullink.slack.simpleslackapi.events;
 
 import java.util.Map;
-import org.json.simple.JSONObject;
 import com.ullink.slack.simpleslackapi.SlackBot;
 import com.ullink.slack.simpleslackapi.SlackChannel;
 import com.ullink.slack.simpleslackapi.SlackFile;
@@ -61,7 +60,7 @@ public interface SlackMessagePosted extends SlackMessageEvent
     
     SlackFile getSlackFile();
     
-    JSONObject getJsonSource();
+    String getJsonSource();
     
     String getTimestamp();
     

@@ -1,20 +1,24 @@
 package com.ullink.slack.simpleslackapi.impl;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.ullink.slack.simpleslackapi.replies.ParsedSlackReply;
-import org.json.simple.JSONObject;
 import com.ullink.slack.simpleslackapi.SlackSession;
 import com.ullink.slack.simpleslackapi.replies.SlackChannelReply;
 
 class SlackJSONReplyParser
 {
-    static ParsedSlackReply decode(JSONObject obj, SlackSession session)
+    static ParsedSlackReply decode(JsonObject obj, SlackSession session)
     {
-        Boolean ok = (Boolean) obj.get("ok");
-        String error = (String) obj.get("error");
-
-        String presence = (String)obj.get("presence");
-        if (presence != null) {
-            return new SlackUserPresenceReplyImpl(ok, error,"active".equals(presence));
+        Boolean ok = obj.get("ok").getAsBoolean();
+        String error = null;
+        if (obj.get("error") != null)
+        {
+            error = obj.get("error").getAsString();
+        }
+        if (obj.get("presence") != null)
+        {
+            return new SlackUserPresenceReplyImpl(ok, error,"active".equals(obj.get("presence").getAsString()));
         }
 
         if (isMpim(obj) || isIm(obj) || isChannel(obj) || isGroup(obj)) {
@@ -22,9 +26,8 @@ class SlackJSONReplyParser
         }
 
         if(isMessageReply(obj)) {
-            Long replyTo = (Long) obj.get("reply_to");
-            String timestamp = (String) obj.get("ts");
-            return new SlackMessageReplyImpl(ok, error, obj, replyTo != null ? replyTo : -1, timestamp);
+            String timestamp = obj.get("ts") != null ? obj.get("ts").getAsString() : null ;
+            return new SlackMessageReplyImpl(ok, error, obj.get("reply_to") != null ? obj.get("reply_to").getAsLong() : -1, timestamp);
         }
 
         if (ok == null) {
@@ -34,54 +37,52 @@ class SlackJSONReplyParser
         return new SlackReplyImpl(ok,error);
     }
 
-    private static SlackChannelReply buildSlackChannelReply(Boolean ok, String error, JSONObject obj, SlackSession session)
+    private static SlackChannelReply buildSlackChannelReply(Boolean ok, String error, JsonObject obj, SlackSession session)
     {
-        String id = (String)obj.get("id");
-        if (id != null) {
-            return new SlackChannelReplyImpl(ok,error,obj, session.findChannelById(id));
+        if (obj.get("id") != null) {
+            return new SlackChannelReplyImpl(ok,error, session.findChannelById(obj.get("id").getAsString()));
         }
 
-        JSONObject channelObj = (JSONObject) obj.get("channel");
+        JsonElement channelObj = obj.get("channel");
         if (channelObj == null) {
-            channelObj = (JSONObject) obj.get("group");
+            channelObj = obj.get("group");
         }
 
-        id = (String)channelObj.get("id");
-        return new SlackChannelReplyImpl(ok,error,obj, session.findChannelById(id));
+        String id = channelObj.getAsJsonObject().get("id").getAsString();
+        return new SlackChannelReplyImpl(ok,error, session.findChannelById(id));
     }
 
-    private static boolean isMessageReply(JSONObject obj)
+    private static boolean isMessageReply(JsonObject obj)
     {
         return obj.get("ts") != null;
     }
     
-    private static boolean isMpim(JSONObject obj)
+    private static boolean isMpim(JsonObject obj)
     {
-        Boolean isMpim = (Boolean)obj.get("is_mpim");
-        return isMpim != null && isMpim.equals(Boolean.TRUE);
+        JsonElement isMpim = obj.get("is_mpim");
+        return isMpim != null && isMpim.getAsBoolean();
     }
 
-    private static boolean isIm(JSONObject obj)
+    private static boolean isIm(JsonObject obj)
     {
-        Boolean isIm = (Boolean)obj.get("is_im");
-        return isIm != null && isIm.equals(Boolean.TRUE);
+        JsonElement isIm = obj.get("is_im");
+        return isIm != null && isIm.getAsBoolean();
     }
 
-    private static boolean isChannel(JSONObject obj)
+    private static boolean isChannel(JsonObject obj)
     {
-        Object channel = obj.get("channel");
-        return channel != null && channel instanceof JSONObject;
+        JsonElement channel = obj.get("channel");
+        return channel != null && channel.isJsonObject();
     }
 
-    private static boolean isGroup(JSONObject obj)
+    private static boolean isGroup(JsonObject obj)
     {
-        Boolean isGroup = (Boolean)obj.get("is_group");
-        if (isGroup != null) {
-            return isGroup;
+        if (obj.get("is_group") != null) {
+            return obj.get("is_group").getAsBoolean();
         }
 
-        Object group = obj.get("group");
-        return group != null && group instanceof JSONObject;
+        JsonElement group = obj.get("group");
+        return group != null && group.isJsonObject();
     }
 
 }

@@ -1,8 +1,10 @@
 package com.ullink.slack.simpleslackapi.impl;
 
 import java.util.Map;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.ullink.slack.simpleslackapi.SlackTeam;
 import com.ullink.slack.simpleslackapi.SlackUser;
 
@@ -14,53 +16,48 @@ class SlackJSONParsingUtils
         // Helper class
     }
 
-    static final SlackUser buildSlackUser(JSONObject jsonUser)
+    static final SlackUser buildSlackUser(JsonObject jsonUser)
     {
-        String id = (String) jsonUser.get("id");
-        String name = (String) jsonUser.get("name");
-        String realName = (String) jsonUser.get("real_name");
-        String tz = (String) jsonUser.get("tz");
-        String tzLabel = (String) jsonUser.get("tz_label");
-        Long tzOffset = ((Long) jsonUser.get("tz_offset"));
-        Boolean deleted = ifNullFalse(jsonUser, "deleted");
-        Boolean admin = ifNullFalse(jsonUser, "is_admin");
-        Boolean owner = ifNullFalse(jsonUser, "is_owner");
-        Boolean primaryOwner = ifNullFalse(jsonUser, "is_primary_owner");
-        Boolean restricted = ifNullFalse(jsonUser, "is_restricted");
-        Boolean ultraRestricted = ifNullFalse(jsonUser, "is_ultra_restricted");
-        Boolean bot = ifNullFalse(jsonUser, "is_bot");
-        JSONObject profileJSON = (JSONObject) jsonUser.get("profile");
-        String email = "";
-        if (profileJSON != null)
+        String id = GsonHelper.getStringOrNull(jsonUser.get("id"));
+        String name = GsonHelper.getStringOrNull(jsonUser.get("name"));
+        String realName = GsonHelper.getStringOrNull(jsonUser.get("real_name"));
+        String tz = GsonHelper.getStringOrNull(jsonUser.get("tz"));
+        String tzLabel = GsonHelper.getStringOrNull(jsonUser.get("tz_label"));
+        JsonElement element = jsonUser.get("tz_offset");
+        Integer tzOffset = null;
+        if (element != null)
         {
-            email = (String) profileJSON.get("email");
+            tzOffset = element.getAsInt();
+        }
+        Boolean deleted = GsonHelper.ifNullFalse(jsonUser, "deleted");
+        Boolean admin = GsonHelper.ifNullFalse(jsonUser, "is_admin");
+        Boolean owner = GsonHelper.ifNullFalse(jsonUser, "is_owner");
+        Boolean primaryOwner = GsonHelper.ifNullFalse(jsonUser, "is_primary_owner");
+        Boolean restricted = GsonHelper.ifNullFalse(jsonUser, "is_restricted");
+        Boolean ultraRestricted = GsonHelper.ifNullFalse(jsonUser, "is_ultra_restricted");
+        Boolean bot = GsonHelper.ifNullFalse(jsonUser, "is_bot");
+        JsonElement profileJSON = jsonUser.get("profile");
+        String email = "";
+        if (profileJSON !=null && !profileJSON.isJsonNull())
+        {
+            email = GsonHelper.getStringOrNull(profileJSON.getAsJsonObject().get("email"));
         }
         return new SlackUserImpl(id, name, realName, email, deleted, admin, owner, primaryOwner, restricted, ultraRestricted, bot, tz, tzLabel, tzOffset == null ? null : new Integer(tzOffset.intValue()));
     }
 
-    private static Boolean ifNullFalse(JSONObject jsonUser, String field)
+    static final SlackChannelImpl buildSlackChannel(JsonObject jsonChannel, Map<String, SlackUser> knownUsersById)
     {
-        Boolean deleted = (Boolean) jsonUser.get(field);
-        if (deleted == null)
-        {
-            deleted = false;
-        }
-        return deleted;
-    }
-
-    static final SlackChannelImpl buildSlackChannel(JSONObject jsonChannel, Map<String, SlackUser> knownUsersById)
-    {
-        String id = (String) jsonChannel.get("id");
-        String name = (String) jsonChannel.get("name");
+        String id =  GsonHelper.getStringOrNull(jsonChannel.get("id"));
+        String name = GsonHelper.getStringOrNull(jsonChannel.get("name"));
         String topic = null; // TODO
         String purpose = null; // TODO
         SlackChannelImpl toReturn = new SlackChannelImpl(id, name, topic, purpose, false);
-        JSONArray membersJson = (JSONArray) jsonChannel.get("members");
-        if (membersJson != null)
+        if (jsonChannel.get("members") != null)
         {
-            for (Object jsonMembersObject : membersJson)
+            JsonArray membersJson = jsonChannel.get("members").getAsJsonArray();
+            for (JsonElement jsonMembersObject : membersJson)
             {
-                String memberId = (String) jsonMembersObject;
+                String memberId = jsonMembersObject.getAsString();
                 SlackUser user = knownUsersById.get(memberId);
                 toReturn.addUser(user);
             }
@@ -68,21 +65,21 @@ class SlackJSONParsingUtils
         return toReturn;
     }
 
-    static final SlackChannelImpl buildSlackImChannel(JSONObject jsonChannel, Map<String, SlackUser> knownUsersById)
+    static final SlackChannelImpl buildSlackImChannel(JsonObject jsonChannel, Map<String, SlackUser> knownUsersById)
     {
-        String id = (String) jsonChannel.get("id");
+        String id = GsonHelper.getStringOrNull(jsonChannel.get("id"));
         SlackChannelImpl toReturn = new SlackChannelImpl(id, null, null, null, true);
-        String memberId = (String) jsonChannel.get("user");
+        String memberId = GsonHelper.getStringOrNull(jsonChannel.get("user"));
         SlackUser user = knownUsersById.get(memberId);
         toReturn.addUser(user);
         return toReturn;
     }
 
-    static final SlackTeam buildSlackTeam(JSONObject jsonTeam)
+    static final SlackTeam buildSlackTeam(JsonObject jsonTeam)
     {
-        String id = (String) jsonTeam.get("id");
-        String name = (String) jsonTeam.get("name");
-        String domain = (String) jsonTeam.get("domain");
+        String id = GsonHelper.getStringOrNull(jsonTeam.get("id"));
+        String name = GsonHelper.getStringOrNull(jsonTeam.get("name"));
+        String domain = GsonHelper.getStringOrNull(jsonTeam.get("domain"));
         return new SlackTeamImpl(id, name, domain);
     }
 }
